@@ -113,7 +113,7 @@ app.get("/users", async (req, res) => {
     const users = await ChatAppUser.find({ username: { $ne: currentUser } });
 
     const unreadMessages = await Messages.find({
-        receiver: users,
+        receiver: currentUser,
         status: {
             $ne: "read"
         }
