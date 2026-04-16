@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-// const dotenv = require("dotenv")
 const mongoose = require("mongoose");
 const authRoutes = require("./routes/Auth.js");
 const { Server } = require("socket.io");
@@ -62,9 +61,21 @@ io.on("connection", (socket) => {
         { sender: sender, receiver: receiver, status: { $ne: "read" } },
         { $set: { status: "read" } }
       );
-      socket.broadcast.emit("chat_read_by_user", { reader: receiver });
+      socket.broadcast.emit("chat_read_by_user", { reader: receiver, chatWith: sender });
     } catch (error) {
       console.error("Error updating read status", error);
+    }
+  });
+
+  socket.on("mark_all_delivered", async (username) => {
+    try {
+      await Messages.updateMany(
+        { receiver: username, status: "sent" },
+        { $set: { status: "delivered" } }
+      );
+      socket.broadcast.emit("user_came_online", username);
+    } catch (error) {
+      console.error("Error marking offline messages as delivered", error);
     }
   });
 
@@ -100,7 +111,19 @@ app.get("/users", async (req, res) => {
   const { currentUser } = req.query;
   try {
     const users = await ChatAppUser.find({ username: { $ne: currentUser } });
-    res.status(200).json(users);
+
+    const unreadMessages = await Messages.find({
+        receiver: users,
+        status: {
+            $ne: "read"
+        }
+    })
+
+    const userWithCount = users.map(u => {
+        const count = unreadMessages.filter(msg => msg.sender === u.username).length;
+        return {...u.toObject(), unreadCount: count}
+    }) 
+    res.status(200).json(userWithCount);
   } catch (error) {
     res
       .status(500)
