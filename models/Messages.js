@@ -19,6 +19,11 @@ const messageSchema = new mongoose.Schema({
         type: String, 
         enum: ['sending', 'sent', 'delivered', 'read'], 
         default: 'sent' 
+    },
+    replyTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Messages",
+        default: null
     }
 }, {
     timestamps: true

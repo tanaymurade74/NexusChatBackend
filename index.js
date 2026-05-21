@@ -32,14 +32,16 @@ io.on("connection", (socket) => {
   console.log("User connected", socket.id);
 
   socket.on("send_message", async (data) => {
-    const { sender, receiver, message, tempId } = data;
+    const { sender, receiver, message, tempId, replyTo } = data;
     try {
-      const newMessage = new Messages({ sender, receiver, message, status: "sent" });
+      const newMessage = new Messages({ sender, receiver, message, status: "sent", replyTo: replyTo || null });
       await newMessage.save();
       
+      await newMessage.populate("replyTo", "sender message")
+
       socket.emit("message_saved", { tempId, realId: newMessage._id });
 
-      socket.broadcast.emit("receive_message", newMessage);
+      socket.broadcast.emit("receive_message", newMessage.toObject());
     } catch (error) {
       console.error("Error while saving message in db", error);
     }
@@ -100,7 +102,7 @@ app.get("/messages", async (req, res) => {
         { sender, receiver },
         { sender: receiver, receiver: sender },
       ],
-    }).sort({ createdAt: 1 });
+    }).populate("replyTo", "sender message").sort({ createdAt: 1 });
     res.status(200).json(messages);
   } catch (error) {
     res.status(500).json({ Message: "Error fetching messages" });
