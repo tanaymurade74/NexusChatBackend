@@ -133,6 +133,61 @@ app.get("/users", async (req, res) => {
   }
 });
 
+app.patch("/messages/:id", async (req, res) => {
+  const { id } = req.params;
+  const { newMessage, username } = req.body;
+
+  if (!newMessage || !newMessage.trim()) {
+    return res.status(400).json({ error: "Message cannot be empty" });
+  }
+
+  try {
+    const msg = await Messages.findById(id);
+    if (!msg) return res.status(404).json({ error: "Message not found" });
+    if (msg.sender !== username) return res.status(403).json({ error: "Not your message" });
+    if (msg.deletedAt) return res.status(400).json({ error: "Message already deleted" });
+
+    msg.message = newMessage.trim();
+    msg.editedAt = new Date();
+    await msg.save();
+
+    io.emit("message_edited", {
+      _id: msg._id,
+      message: msg.message,
+      editedAt: msg.editedAt,
+    });
+
+    res.status(200).json(msg);
+  } catch (error) {
+    console.error("Error editing message", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.delete("/messages/:id", async (req, res) => {
+  const { id } = req.params;
+  const { username } = req.body;
+
+  try {
+    const msg = await Messages.findById(id);
+    if (!msg) return res.status(404).json({ error: "Message not found" });
+    if (msg.sender !== username) return res.status(403).json({ error: "Not your message" });
+    if (msg.deletedAt) return res.status(200).json({ ok: true }); 
+
+    await Messages.updateOne(
+      { _id: id },
+      { $set: { deletedAt: new Date(), message: "" } }
+    );
+
+    io.emit("message_deleted", { _id: id });
+
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error("Error deleting message", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 const PORT = process.env.PORT || 5001;
 
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

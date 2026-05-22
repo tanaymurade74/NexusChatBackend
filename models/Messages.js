@@ -24,6 +24,14 @@ const messageSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Messages",
         default: null
+    },
+    editedAt:{
+        type: Date,
+        default: null
+    },
+    deletedAt:{
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true
