@@ -39,7 +39,7 @@ const matcher = new RegExpMatcher({
 const censor = new TextCensor();
 
 const maskAbuse = (text) => {
-  if(!text || text.trim) return text;
+  if(!text || !text.trim()) return text;
   const matches = matcher.getAllMatches(text);
   return censor.applyTo(text, matches);
 }
