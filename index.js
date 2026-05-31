@@ -7,6 +7,9 @@ const http = require("http");
 const Messages = require("./models/Messages.js");
 const ChatAppUser = require("./models/ChatAppUser.js");
 
+const { RegExpMatcher, TextCensor, englishDataset, englishRecommendedTransformers } = require('obscenity');
+
+
 require("dotenv").config();
 
 const app = express();
@@ -28,18 +31,33 @@ mongoose
 
 app.use("/auth", authRoutes);
 
+const matcher = new RegExpMatcher({
+	...englishDataset.build(),
+	...englishRecommendedTransformers,
+});
+
+const censor = new TextCensor();
+
+const maskAbuse = (text) => {
+  if(!text || text.trim) return text;
+  const matches = matcher.getAllMatches(text);
+  return censor.applyTo(text, matches);
+}
+
 io.on("connection", (socket) => {
   console.log("User connected", socket.id);
 
   socket.on("send_message", async (data) => {
     const { sender, receiver, message, tempId, replyTo } = data;
     try {
-      const newMessage = new Messages({ sender, receiver, message, status: "sent", replyTo: replyTo || null });
+      const cleanMessage = maskAbuse(message);
+
+      const newMessage = new Messages({ sender, receiver, message: cleanMessage, status: "sent", replyTo: replyTo || null });
       await newMessage.save();
       
       await newMessage.populate("replyTo", "sender message")
 
-      socket.emit("message_saved", { tempId, realId: newMessage._id });
+      socket.emit("message_saved", { tempId, realId: newMessage._id, message: cleanMessage });
 
       socket.broadcast.emit("receive_message", newMessage.toObject());
     } catch (error) {
@@ -147,7 +165,8 @@ app.patch("/messages/:id", async (req, res) => {
     if (msg.sender !== username) return res.status(403).json({ error: "Not your message" });
     if (msg.deletedAt) return res.status(400).json({ error: "Message already deleted" });
 
-    msg.message = newMessage.trim();
+
+    msg.message = maskAbuse(newMessage.trim());
     msg.editedAt = new Date();
     await msg.save();
 
