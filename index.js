@@ -1,3 +1,4 @@
+// import {Filter} from "bad-words"
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -8,7 +9,7 @@ const Messages = require("./models/Messages.js");
 const ChatAppUser = require("./models/ChatAppUser.js");
 
 const { RegExpMatcher, TextCensor, englishDataset, englishRecommendedTransformers } = require('obscenity');
-const {Filter} = require("bad-words");
+const Filter = require("bad-words");
 
 
 
