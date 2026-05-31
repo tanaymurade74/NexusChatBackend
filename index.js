@@ -8,6 +8,8 @@ const Messages = require("./models/Messages.js");
 const ChatAppUser = require("./models/ChatAppUser.js");
 
 const { RegExpMatcher, TextCensor, englishDataset, englishRecommendedTransformers } = require('obscenity');
+const {Filter} = require("bad-words");
+
 
 
 require("dotenv").config();
@@ -38,10 +40,12 @@ const matcher = new RegExpMatcher({
 
 const censor = new TextCensor();
 
+const filter = new Filter();
+
 const maskAbuse = (text) => {
   if(!text || !text.trim()) return text;
-  const matches = matcher.getAllMatches(text);
-  return censor.applyTo(text, matches);
+  // const matches = matcher.getAllMatches(text);
+  return filter.clean(text);
 }
 
 io.on("connection", (socket) => {
