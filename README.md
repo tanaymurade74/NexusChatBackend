@@ -2,10 +2,6 @@
 
 A real-time chat API powering one-to-one messaging with JWT authentication, message status tracking, typing indicators, replies, edit/delete, and server-side profanity masking. Built with Express, Socket.IO, and MongoDB.
 
-## Live API
-
-_Add your deployed API URL here._ When running locally, the server uses `http://localhost:5001`.
-
 ## Quick Start
 
 ```bash
@@ -68,10 +64,6 @@ node index.js     # runs on http://localhost:5001
 **Moderation**
 
 * Profanity is masked server-side before messages are saved
-
-## REST API Reference
-
-Base URL: the live API above, or `http://localhost:5001`.
 
 ### Authentication
 
