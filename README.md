@@ -1,90 +1,124 @@
-# Nexus Chat – Frontend
+# Nexus Chat – Backend
 
-A real-time chat interface for one-to-one messaging. Register or log in, chat live with read receipts and typing indicators, reply to messages, edit or delete your own, and drop in emojis. Built with React, Socket.IO, and Bootstrap.
+A real-time chat API powering one-to-one messaging with JWT authentication, message status tracking, typing indicators, replies, edit/delete, and server-side profanity masking. Built with Express, Socket.IO, and MongoDB.
 
-## Live Demo
+## Live API
 
-[Live Demo](https://chat-app-frontend-three-umber.vercel.app)
+_Add your deployed API URL here._ When running locally, the server uses `http://localhost:5001`.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/tanaymurade74/ChatAppFrontend.git
-cd ChatAppFrontend
+git clone https://github.com/tanaymurade74/ChatAppBackend.git
+cd ChatAppBackend
 npm install
 ```
 
-Create a `.env` file in the project root, pointing at the backend:
+Create a `.env` file in the project root:
 
 ```env
-REACT_APP_API_URL=http://localhost:5001
+MONGODB=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+PORT=5001
 ```
 
-> Replace with your deployed [backend](https://github.com/tanaymurade74/ChatAppBackend) URL in production. This single variable is used for both the REST calls and the Socket.IO connection.
-
-Then start the app:
+Then start the server:
 
 ```bash
-npm start
+node index.js     # runs on http://localhost:5001
 ```
+
+> No `start` script is defined yet. To use `npm start`, add `"start": "node index.js"` to `scripts` in `package.json` (and `nodemon` for auto-reload during development).
 
 ## Technologies
 
-* React 19
-* React Router DOM 7
-* Bootstrap 5
-* Axios
-* Socket.IO Client
-* emoji-picker-react
-* Create React App (react-scripts)
+* Node.js
+* Express 5
+* Socket.IO
+* MongoDB
+* Mongoose 9
+* JSON Web Token (jsonwebtoken)
+* bcrypt
+* obscenity (profanity filtering)
+* CORS
+* dotenv
 
 ## Features
 
 **Authentication**
 
-* Register a new account and log in
-* Redirects unknown routes back to the entry page
+* User registration and login
+* Passwords hashed with bcrypt
+* JWT issued on registration
 
-**Chat**
+**Messaging**
 
-* Real-time one-to-one messaging over Socket.IO
-* List of users with unread message counts
-* Reply to a specific message
-* Edit and delete your own messages
-* Emoji picker for composing messages
+* One-to-one messages stored in MongoDB
+* Reply to a specific message (threaded references)
+* Edit and soft-delete your own messages
+* Unread message counts per conversation
 
-**Real-time UX**
+**Real-time (Socket.IO)**
 
-* Read receipts (sent → delivered → read)
-* Live typing indicators
-* Messages and status updates appear instantly without refresh
+* Instant message delivery
+* Delivery and read receipts (sent → delivered → read)
+* Typing / stopped-typing indicators
+* Online-presence handling (deliver queued messages when a user comes online)
 
-## Routes
+**Moderation**
 
-| Path                | Component | Description                          |
-|---------------------|-----------|--------------------------------------|
-| `/`                 | Register  | Create a new account (entry page)    |
-| `/login`            | Login     | Log in with existing credentials     |
-| `/chats/:username`  | Chat      | Main chat screen for the logged-in user |
-| `*`                 | —         | Redirects to `/`                     |
+* Profanity is masked server-side before messages are saved
 
-## Project Structure
+## REST API Reference
 
-```
-src/
-├── components/
-│   ├── Register.js     # Sign-up form
-│   ├── Login.js        # Login form
-│   ├── Chat.js         # Main chat screen + Socket.IO logic
-│   └── MessageList.js  # Renders the message thread
-├── App.js              # Routes and app shell
-└── index.js            # Entry point
-```
+Base URL: the live API above, or `http://localhost:5001`.
 
-## Backend
+### Authentication
 
-This app consumes a separate Express + Socket.IO + MongoDB server.
+**`POST /auth/register`**
+Register a new user. Body: `username`, `password`.
+Sample response: `{ "token": "...", "username": "..." }`
 
-* **Backend repository:** [https://github.com/tanaymurade74/ChatAppBackend](https://github.com/tanaymurade74/ChatAppBackend)
+**`POST /auth/login`**
+Log in with `username` and `password`.
+Sample response: `{ "Message": "Login successful" }`
 
-The frontend reads the API base URL from `REACT_APP_API_URL` and uses it for REST endpoints (`/auth/*`, `/messages`, `/users`) and the real-time Socket.IO connection.
+### Messages & Users
+
+**`GET /messages?sender=<a>&receiver=<b>`**
+Fetch the full conversation between two users (both directions), oldest first.
+Sample response: `[ { _id, sender, receiver, message, status, replyTo, createdAt } ]`
+
+**`GET /users?currentUser=<username>`**
+List all other users, each with an `unreadCount` for the current user.
+Sample response: `[ { _id, username, unreadCount } ]`
+
+**`PATCH /messages/:id`**
+Edit one of your own messages. Body: `newMessage`, `username`.
+Sample response: `{ _id, message, editedAt, ... }`
+
+**`DELETE /messages/:id`**
+Soft-delete one of your own messages (clears text, sets `deletedAt`). Body: `username`.
+Sample response: `{ "ok": true }`
+
+## Real-time Events (Socket.IO)
+
+**Client → Server:** `send_message`, `message_delivered`, `mark_chat_read`, `mark_all_delivered`, `typing`, `stop_typing`
+
+**Server → Client:** `message_saved`, `receive_message`, `status_updated_to_delivered`, `chat_read_by_user`, `user_came_online`, `user_typing`, `user_stopped_typing`, `message_edited`, `message_deleted`
+
+## Data Models
+
+* **User** — `username` (unique), `password` (bcrypt-hashed), `createdAt`
+* **Message** — `sender`, `receiver`, `message`, `status` (sending/sent/delivered/read), `replyTo` (reference to another message), `editedAt`, `deletedAt`, timestamps
+
+## Related Repositories
+
+* **Frontend (React):** [https://github.com/tanaymurade74/ChatAppFrontend](https://github.com/tanaymurade74/ChatAppFrontend)
+
+## Notes
+
+* Messages are **soft-deleted** — the document is kept with `deletedAt` set and its text cleared, rather than removed.
+* `/auth/login` currently validates credentials but does not issue a JWT (only `/auth/register` returns a token). Worth wiring up if you add token-protected routes.
+* CORS is open to all origins.
+* The server port defaults to `5001` (override with the `PORT` env variable).
